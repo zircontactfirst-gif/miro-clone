@@ -19,6 +19,9 @@ export const Navbar = () => {
             <div className="block lg:hidden flex-1">
                 <OrganizationSwitcher
                     hidePersonal
+                    afterSelectOrganizationUrl="/dashboard"
+                    afterLeaveOrganizationUrl="/dashboard"
+                    afterCreateOrganizationUrl="/dashboard"
                     appearance={{
                         elements: {
                             rootBox: {

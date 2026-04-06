@@ -7,6 +7,7 @@ export type Color = {
 export type Camera = {
     x: number;
     y: number;
+    scale: number;
 };
 
 export enum LayerType {
@@ -15,6 +16,7 @@ export enum LayerType {
     Path,
     Text,
     Note,
+    Image,
 }
 
 export type RectangleLayer = {
@@ -121,6 +123,15 @@ export type CanvasState =
           corner: Side;
       };
 
+export type ImageLayer = {
+    type: LayerType.Image;
+    x: number;
+    y: number;
+    height: number;
+    width: number;
+    src: string;
+};
+
 export enum CanvasMode {
     None,
     SelectionNet,
@@ -136,4 +147,5 @@ export type Layer =
     | EllipseLayer
     | PathLayer
     | TextLayer
-    | NoteLayer;
+    | NoteLayer
+    | ImageLayer;

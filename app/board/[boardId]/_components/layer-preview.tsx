@@ -8,6 +8,7 @@ import { Ellipse } from "./ellipse";
 import { Text } from "./text";
 import { Note } from "./note";
 import { Path } from "./path";
+import { ImageNode } from "./image";
 import { colorToCss } from "@/lib/utils";
 
 interface LayerPreviewProps {
@@ -70,6 +71,15 @@ export const LayerPreview = memo(
                     />
                 );
 
+            case LayerType.Image:
+                return (
+                    <ImageNode
+                        id={id}
+                        layer={layer}
+                        onPointerDown={onLayerPointerDown}
+                        selectionColor={selectionColor}
+                    />
+                );
             default:
                 console.warn("Unsupported layer type");
         }

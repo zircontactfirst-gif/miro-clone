@@ -17,6 +17,7 @@ export const create = mutation({
     args: {
         orgId: v.string(),
         title: v.string(),
+        type: v.optional(v.union(v.literal("board"), v.literal("document"))),
     },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
@@ -31,6 +32,7 @@ export const create = mutation({
             authorId: identity.subject,
             authorName: identity.name!,
             imageUrl: randomImage,
+            type: args.type || "board",
         });
 
         return board;

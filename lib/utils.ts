@@ -34,8 +34,8 @@ export function pointerEventToCanvasPoint(
     camera: Camera
 ) {
     return {
-        x: Math.round(e.clientX - camera.x),
-        y: Math.round(e.clientY - camera.y),
+        x: Math.round((e.clientX - camera.x) / (camera.scale || 1)),
+        y: Math.round((e.clientY - camera.y) / (camera.scale || 1)),
     };
 }
 

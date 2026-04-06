@@ -1,7 +1,7 @@
 export default {
     providers: [
         {
-            domain: "https://regular-humpback-73.clerk.accounts.dev",
+            domain: "https://better-penguin-2.clerk.accounts.dev",
             applicationID: "convex",
         },
     ],

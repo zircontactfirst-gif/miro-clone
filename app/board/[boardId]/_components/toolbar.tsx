@@ -9,9 +9,10 @@ import {
     StickyNote,
     TypeIcon,
     Undo2,
+    ImageIcon,
 } from "lucide-react";
 import { CanvasMode, CanvasState, LayerType } from "@/types/canvas";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useSelf } from "@/liveblocks.config";
 
 interface ToolbarProps {
@@ -21,6 +22,7 @@ interface ToolbarProps {
     redo: () => void;
     canUndo: boolean;
     canRedo: boolean;
+    onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 const Toolbar = ({
@@ -30,8 +32,10 @@ const Toolbar = ({
     redo,
     canUndo,
     canRedo,
+    onImageUpload,
 }: ToolbarProps) => {
     const selection = useSelf((me) => me.presence.selection);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
@@ -165,6 +169,18 @@ const Toolbar = ({
                         })
                     }
                     isActive={canvasState.mode === CanvasMode.Pencil}
+                />
+                <input
+                    type="file"
+                    accept="image/*"
+                    ref={fileInputRef}
+                    onChange={onImageUpload}
+                    className="hidden"
+                />
+                <ToolButton
+                    label="Upload Image"
+                    icon={ImageIcon}
+                    onClick={() => fileInputRef.current?.click()}
                 />
             </div>
             <div className="bg-white rounded-md p-1.5 flex flex-col items-center shadow-md">

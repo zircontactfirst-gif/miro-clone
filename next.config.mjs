@@ -11,3 +11,5 @@ const nextConfig = {
 };
 
 export default nextConfig;
+
+// Trigger restart to load new middleware configurations

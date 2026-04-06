@@ -21,6 +21,7 @@ import {
     Side,
     XYWH,
     Layer,
+    ImageLayer,
 } from "@/types/canvas";
 import {
     useHistory,
@@ -46,10 +47,10 @@ import { SelectionBox } from "./selection-box";
 import { SelectionTools } from "./selection-tools";
 import { Path } from "./path";
 import { useDisableScrollBounce } from "@/hooks/use-disable-scroll-bounce";
-import { ResetCamera } from "./reset-camera";
+import { ZoomControls } from "./zoom-controls";
 
 import { toPng } from "html-to-image";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation as useConvexMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 
@@ -70,10 +71,10 @@ export const Canvas = ({ boardId }: CanvasProps) => {
         mode: CanvasMode.None,
     });
 
-    const [camera, setCamera] = useState<Camera>({ x: 0, y: 0 });
+    const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, scale: 1 });
 
     const resetCamera = useCallback(() => {
-        setCamera({ x: 0, y: 0 });
+        setCamera({ x: 0, y: 0, scale: 1 });
     }, []);
 
     const [lastUsedColor, setLastUsedColor] = useState<Color>({
@@ -81,6 +82,8 @@ export const Canvas = ({ boardId }: CanvasProps) => {
         g: 255,
         b: 255,
     });
+
+    const generateUploadUrl = useConvexMutation(api.files.generateUploadUrl);
 
     useDisableScrollBounce();
     const history = useHistory();
@@ -121,6 +124,89 @@ export const Canvas = ({ boardId }: CanvasProps) => {
         },
         [lastUsedColor]
     );
+
+    const insertImageLayer = useMutation(
+        ({ storage, setMyPresence }, src: string, position: Point) => {
+            const liveLayers = storage.get("layers");
+            if (liveLayers.size >= MAX_LAYERS) {
+                return;
+            }
+
+            const liveLayerIds = storage.get("layerIds");
+            const layerId = nanoid();
+            const layer = new LiveObject({
+                type: LayerType.Image as any,
+                x: position.x,
+                y: position.y,
+                height: 200,
+                width: 200,
+                src,
+            });
+
+            liveLayerIds.push(layerId);
+            liveLayers.set(layerId, layer as any);
+
+            setMyPresence({ selection: [layerId] }, { addToHistory: true });
+        },
+        []
+    );
+
+    useEffect(() => {
+        const onPaste = async (e: ClipboardEvent) => {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (item.type.indexOf("image") !== -1) {
+                    const file = item.getAsFile();
+                    if (!file) continue;
+
+                    try {
+                        const postUrl = await generateUploadUrl();
+                        const result = await fetch(postUrl, {
+                            method: "POST",
+                            headers: { "Content-Type": file.type },
+                            body: file,
+                        });
+                        const { storageId } = await result.json();
+
+                        const centerX = (window.innerWidth / 2 - camera.x) / (camera.scale || 1);
+                        const centerY = (window.innerHeight / 2 - camera.y) / (camera.scale || 1);
+
+                        insertImageLayer(storageId, { x: centerX, y: centerY });
+                    } catch (error) {
+                        console.error("Failed to upload image", error);
+                    }
+                }
+            }
+        };
+
+        document.addEventListener("paste", onPaste);
+        return () => document.removeEventListener("paste", onPaste);
+    }, [camera, generateUploadUrl, insertImageLayer]);
+
+    const onImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        try {
+            const postUrl = await generateUploadUrl();
+            const result = await fetch(postUrl, {
+                method: "POST",
+                headers: { "Content-Type": file.type },
+                body: file,
+            });
+            const { storageId } = await result.json();
+
+            const centerX = (window.innerWidth / 2 - camera.x) / (camera.scale || 1);
+            const centerY = (window.innerHeight / 2 - camera.y) / (camera.scale || 1);
+
+            insertImageLayer(storageId, { x: centerX, y: centerY });
+        } catch (error) {
+            console.error("Failed to upload image", error);
+        }
+    };
 
     const translateSelectedLayers = useMutation(
         ({ storage, self }, point: Point) => {
@@ -281,12 +367,23 @@ export const Canvas = ({ boardId }: CanvasProps) => {
     );
 
     const onWheel = useCallback((e: React.WheelEvent) => {
-        setCamera((camera) => {
-            return {
-                x: camera.x - e.deltaX,
-                y: camera.y - e.deltaY,
-            };
-        });
+        if (e.ctrlKey || e.metaKey) {
+            setCamera((camera) => {
+                const newScale = Math.min(Math.max((camera.scale || 1) - e.deltaY * 0.01, 0.1), 5);
+                return {
+                    ...camera,
+                    scale: newScale,
+                };
+            });
+        } else {
+            setCamera((camera) => {
+                return {
+                    ...camera,
+                    x: camera.x - e.deltaX,
+                    y: camera.y - e.deltaY,
+                };
+            });
+        }
     }, []);
 
     const onPointerMove = useMutation(
@@ -558,10 +655,9 @@ export const Canvas = ({ boardId }: CanvasProps) => {
                 canRedo={canRedo}
                 undo={history.undo}
                 redo={history.redo}
+                onImageUpload={onImageUpload}
             />
-            {camera.x != 0 && camera.y != 0 && (
-                <ResetCamera resetCamera={resetCamera} />
-            )}
+            <ZoomControls camera={camera} setCamera={setCamera as any} />
             <SelectionTools
                 onDuplicate={duplicateLayers}
                 camera={camera}
@@ -579,7 +675,8 @@ export const Canvas = ({ boardId }: CanvasProps) => {
             >
                 <g
                     style={{
-                        transform: `translate(${camera.x}px, ${camera.y}px)`,
+                        transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.scale})`,
+                        transformOrigin: "0 0"
                     }}
                 >
                     {layerIds.map((layerId) => {
